@@ -1,0 +1,79 @@
+# ================================================
+# ConfirmaID - Docker Compose (Desenvolvimento e Base)
+# ================================================
+# Este é um template de referência.
+# Para produção use docker-compose.prod.yml (será criado na Fase 9/10).
+#
+# Como usar (durante o desenvolvimento do plano):
+#   docker compose up -d db
+#   docker compose down
+#
+# NÃO execute este arquivo em produção sem adaptações.
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: confirmaid-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-confirmaid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-confirmaid}
+    ports:
+      # Apenas para desenvolvimento local. Em produção NÃO exponha esta porta.
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-confirmaid}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Serviço da aplicação (Next.js)
+  # ============================================
+  # Este serviço ainda está comentado porque o projeto Next.js
+  # só será criado a partir da Fase 1.
+  #
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: confirmaid-app
+  #   restart: unless-stopped
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   environment:
+  #     - NODE_ENV=development
+  #     - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+  #     - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+  #     - NEXTAUTH_URL=${NEXT_PUBLIC_APP_URL}
+  #     - STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY}
+  #     - STORAGE_PATH=/app/storage/private
+  #   volumes:
+  #     # Volume para arquivos criptografados (muito importante)
+  #     - ./storage/private:/app/storage/private
+  #   ports:
+  #     # Apenas desenvolvimento. Produção usa Cloudflare Tunnel.
+  #     - "3000:3000"
+  #   command: npm run dev
+
+volumes:
+  postgres_data:
+    driver: local
+
+# ================================================
+# Notas importantes:
+#
+# 1. A pasta storage/private deve existir no host com permissão restrita.
+# 2. Em produção:
+#    - Use docker-compose.prod.yml
+#    - Build otimizado (standalone)
+#    - Não exponha porta 3000
+#    - Rode o container como usuário não-root quando possível
+# 3. O Cloudflare Tunnel apontará para o serviço "app" na porta 3000 internamente.
+# ================================================

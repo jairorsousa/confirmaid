@@ -1,0 +1,80 @@
+# =============================================
+# ConfirmaID - .gitignore
+# =============================================
+
+# Dependências
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Next.js
+/.next/
+/out/
+
+# Produção
+/build
+/dist
+
+# Variáveis de ambiente (NUNCA commite)
+.env
+.env*.local
+.env.production
+.env.development
+.env.test
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diretório de armazenamento de arquivos sensíveis (CRÍTICO)
+storage/private/*
+!storage/private/.gitkeep
+
+# Backups
+backups/*
+!backups/.gitkeep
+
+# Prisma
+/prisma/migrations/*_manual_*
+# Descomente se quiser ignorar o client gerado em alguns cenários
+# /node_modules/.prisma
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDEs e editores
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testes
+/coverage
+.nyc_output
+
+# Docker
+docker-compose.override.yml
+
+# Outros
+*.tgz
+.cache/
+.tmp/
+temp/
+
+# Secrets e chaves (reforço)
+*.pem
+*.key
+secrets/
+*.env.bak

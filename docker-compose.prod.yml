@@ -1,0 +1,76 @@
+# ================================================
+# ConfirmaID - Docker Compose para Produção
+# ================================================
+# Use este arquivo no VPS com:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Este arquivo ainda é um template.
+# Será refinado durante as Fases 9 e 10.
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: confirmaid-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Em produção NÃO exponha a porta do banco publicamente
+    # ports:
+    #   - "5432:5432"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production   # multi-stage build recomendado
+    container_name: confirmaid-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXT_PUBLIC_APP_URL}
+      - STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY}
+      - STORAGE_PATH=/app/storage/private
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+    volumes:
+      # Arquivos criptografados (obrigatório)
+      - ./storage/private:/app/storage/private
+    # Não exponha porta publicamente — Cloudflare Tunnel cuida disso
+    # ports:
+    #   - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+
+# ================================================
+# Instruções futuras (Fase 9/10):
+#
+# - Criar Dockerfile multi-stage otimizado
+# - Adicionar rede interna explícita
+# - Configurar usuário não-root no container da app
+# - Adicionar restart policies e limits de recurso
+# - Integrar com script de backup
+# ================================================

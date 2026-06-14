@@ -1,0 +1,82 @@
+# ============================================================
+# ConfirmaID - Docker Compose (Starter for this VPS)
+# ============================================================
+# This is a starting template for the shared VPS (72.60.0.47).
+# It follows the same pattern used by other projects on this machine:
+# - Dedicated cloudflared container (no global tunnel)
+# - Private storage volume with correct permissions
+# - Postgres + app
+#
+# Usage (as deploy user):
+#   cd /home/deploy/confirmaid/app
+#   docker compose -f docker-compose.confirmaid.yml up -d --build
+#
+# Tunnel: You will create a new tunnel in Cloudflare dashboard
+# and put the token in the cloudflared service below.
+#
+# IMPORTANT: Do NOT expose any ports publicly. Everything goes through the tunnel.
+# ============================================================
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: confirmaid-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-confirmaid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-confirmaid}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-confirmaid}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # No ports exposed - only internal network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: confirmaid-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-confirmaid}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-confirmaid}?schema=public
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXT_PUBLIC_APP_URL}
+      - STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY}
+      - STORAGE_PATH=/app/storage/private
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+    volumes:
+      # Encrypted files go here (mounted from host with 700 perms)
+      - /home/deploy/confirmaid/storage/private:/app/storage/private
+    # Do NOT publish ports. Access only via Cloudflare Tunnel.
+    # ports:
+    #   - "3000:3000"
+
+  # Per-project Cloudflare Tunnel (same pattern as other projects on this VPS)
+  cloudflared:
+    image: cloudflare/cloudflared:2025.11.1
+    container_name: confirmaid-cloudflared
+    restart: unless-stopped
+    command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    # No ports needed - cloudflared handles outbound connection to Cloudflare
+
+volumes:
+  postgres_data:
+    driver: local
+
+# Notes:
+# - All secrets come from .env (never commit .env)
+# - storage/private on the host must have 700 permissions (already set)
+# - Create a dedicated tunnel in Cloudflare Zero Trust for confirmaid.com.br
+#   and put the token in CLOUDFLARE_TUNNEL_TOKEN in .env
+# ============================================================
